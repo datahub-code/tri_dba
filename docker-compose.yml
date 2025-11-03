@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: marketing_postgres
+    environment:
+      POSTGRES_DB: marketing_genius
+      POSTGRES_USER: marketing_user
+      POSTGRES_PASSWORD: marketing_pass_2024
+      POSTGRES_MULTIPLE_DATABASES: marketing_genius_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgresql/init:/docker-entrypoint-initdb.d
+    networks:
+      - marketing_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketing_user -d marketing_genius"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: marketing_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: marketing_user
+      MONGO_INITDB_ROOT_PASSWORD: marketing_pass_2024
+      MONGO_INITDB_DATABASE: marketing_genius
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/mongodb/init:/docker-entrypoint-initdb.d
+    networks:
+      - marketing_network
+    command: mongod --auth
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: marketing_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./database/redis/redis.conf:/etc/redis/redis.conf
+    networks:
+      - marketing_network
+    command: redis-server /etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # InfluxDB Time Series Database
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: marketing_influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: marketing_user
+      DOCKER_INFLUXDB_INIT_PASSWORD: marketing_pass_2024
+      DOCKER_INFLUXDB_INIT_ORG: marketing_genius
+      DOCKER_INFLUXDB_INIT_BUCKET: analytics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: marketing_admin_token_2024
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - marketing_network
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  influxdb_data:
+    driver: local
+
+networks:
+  marketing_network:
+    driver: bridge
