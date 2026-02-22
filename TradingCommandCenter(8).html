@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day Trade Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050811;
+    --bg2: #080d1a;
+    --bg3: #0c1220;
+    --panel: #0e1525;
+    --panel2: #111b2e;
+    --border: #1a2840;
+    --green: #00ff88;
+    --green2: #00cc66;
+    --green-dim: rgba(0,255,136,0.08);
+    --red: #ff3355;
+    --red2: #cc2244;
+    --red-dim: rgba(255,51,85,0.08);
+    --yellow: #ffd100;
+    --yellow-dim: rgba(255,209,0,0.08);
+    --blue: #00aaff;
+    --blue-dim: rgba(0,170,255,0.08);
+    --orange: #ff8800;
+    --gray: #4a5568;
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-bright: #ffffff;
+    --glow-green: 0 0 20px rgba(0,255,136,0.4), 0 0 40px rgba(0,255,136,0.2);
+    --glow-red: 0 0 20px rgba(255,51,85,0.4), 0 0 40px rgba(255,51,85,0.2);
+    --glow-yellow: 0 0 20px rgba(255,209,0,0.4), 0 0 40px rgba(255,209,0,0.2);
+    --glow-blue: 0 0 20px rgba(0,170,255,0.3), 0 0 40px rgba(0,170,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,170,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,170,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse, rgba(0,100,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; padding: 16px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--blue); }
+  .ticker-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .ticker-select {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 700; cursor: pointer; outline: none;
+  }
+  .clock { font-size: 20px; font-weight: 800; color: var(--yellow); letter-spacing: 2px; }
+  .session-badge {
+    padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    transition: all 0.5s;
+  }
+
+  /* ── THE BIG ACTION BOX ── */
+  .action-hero {
+    border-radius: 16px; padding: 28px 36px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; overflow: hidden;
+    border: 2px solid;
+    transition: all 0.6s ease;
+    min-height: 140px;
+  }
+  .action-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, var(--hero-glow, rgba(0,255,136,0.12)) 0%, transparent 60%);
+  }
+  .action-hero.go-long   { border-color: var(--green); --hero-glow: rgba(0,255,136,0.15); background: linear-gradient(135deg, rgba(0,255,136,0.05) 0%, var(--panel) 60%); }
+  .action-hero.go-short  { border-color: var(--red);   --hero-glow: rgba(255,51,85,0.15);  background: linear-gradient(135deg, rgba(255,51,85,0.05) 0%, var(--panel) 60%); }
+  .action-hero.wait      { border-color: var(--yellow); --hero-glow: rgba(255,209,0,0.12); background: linear-gradient(135deg, rgba(255,209,0,0.04) 0%, var(--panel) 60%); }
+  .action-hero.no-trade  { border-color: var(--gray);   --hero-glow: rgba(100,100,100,0.1); background: linear-gradient(135deg, rgba(100,100,100,0.03) 0%, var(--panel) 60%); }
+
+  .action-left { position: relative; z-index: 1; }
+  .action-tag { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; opacity: 0.7; }
+  .action-main { font-family: 'Bebas Neue', sans-serif; font-size: 64px; line-height: 1; letter-spacing: 4px; margin-bottom: 8px; }
+  .action-sub { font-size: 13px; color: var(--text-dim); max-width: 400px; line-height: 1.6; }
+
+  .action-right { position: relative; z-index: 1; text-align: right; }
+  .score-ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .score-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.6; }
+  .score-big { font-size: 56px; font-weight: 900; line-height: 1; }
+  .score-denom { font-size: 20px; opacity: 0.5; }
+  .grade-badge {
+    display: inline-block; padding: 4px 16px; border-radius: 20px;
+    font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  }
+
+  /* ── 3 KEY NUMBERS ── */
+  .key-numbers {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 16px;
+  }
+  .kn-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 4px;
+    position: relative; overflow: hidden;
+    transition: all 0.4s;
+  }
+  .kn-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  }
+  .kn-card.green::after { background: var(--green); box-shadow: var(--glow-green); }
+  .kn-card.red::after { background: var(--red); box-shadow: var(--glow-red); }
+  .kn-card.yellow::after { background: var(--yellow); box-shadow: var(--glow-yellow); }
+  .kn-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+  .kn-value { font-size: 28px; font-weight: 800; line-height: 1.1; }
+  .kn-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .kn-icon { font-size: 28px; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); opacity: 0.15; }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* ── INDICATOR CARD ── */
+  .ind-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    transition: border-color 0.4s;
+  }
+  .ind-card.bullish { border-color: rgba(0,255,136,0.3); }
+  .ind-card.bearish { border-color: rgba(255,51,85,0.3); }
+  .ind-card.warning { border-color: rgba(255,209,0,0.3); }
+
+  .ind-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .ind-name { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+  .ind-status {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 3px 10px;
+    border-radius: 20px; text-transform: uppercase;
+  }
+  .status-bull { background: rgba(0,255,136,0.15); color: var(--green); }
+  .status-bear { background: rgba(255,51,85,0.15);  color: var(--red); }
+  .status-wait { background: rgba(255,209,0,0.15);  color: var(--yellow); }
+  .status-off  { background: rgba(100,100,100,0.15); color: var(--gray); }
+
+  .ind-value { font-size: 26px; font-weight: 800; margin-bottom: 4px; line-height: 1; }
+  .ind-meaning { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  /* Progress bar */
+  .bar-track {
+    height: 6px; background: var(--bg3); border-radius: 3px;
+    margin: 10px 0 6px; overflow: hidden;
+  }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .bar-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-dim); }
+
+  /* Condition checklist */
+  .checklist { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .check-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; padding: 4px 0;
+  }
+  .check-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    transition: all 0.4s;
+  }
+  .check-dot.pass { background: var(--green); box-shadow: 0 0 8px rgba(0,255,136,0.6); }
+  .check-dot.fail { background: var(--red); box-shadow: 0 0 8px rgba(255,51,85,0.4); }
+  .check-dot.warn { background: var(--yellow); box-shadow: 0 0 8px rgba(255,209,0,0.5); }
+  .check-dot.off  { background: var(--gray); }
+  .check-text { flex: 1; }
+  .check-val { color: var(--text-dim); font-size: 10px; }
+
+  /* ── BOTTOM ROW ── */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  /* Trade Plan Box */
+  .trade-plan {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .tp-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  .tp-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .tp-row:last-child { border-bottom: none; }
+  .tp-label { font-size: 11px; color: var(--text-dim); }
+  .tp-val { font-size: 14px; font-weight: 700; }
+
+  /* Session Timeline */
+  .timeline {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .tl-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  .tl-track { position: relative; height: 12px; background: var(--bg3); border-radius: 6px; margin: 16px 0 8px; }
+  .tl-progress { position: absolute; left: 0; top: 0; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--blue), var(--green)); transition: width 1s; }
+  .tl-needle {
+    position: absolute; top: -4px;
+    width: 4px; height: 20px; background: white; border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(255,255,255,0.8);
+    transition: left 1s;
+  }
+  .tl-zones { display: flex; gap: 4px; margin-top: 6px; }
+  .tl-zone {
+    flex: 1; text-align: center; padding: 6px 4px; border-radius: 6px;
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+  }
+  .tl-zone.active { opacity: 1; }
+  .tl-zone.inactive { opacity: 0.3; }
+  .zone-or   { background: rgba(255,209,0,0.15); color: var(--yellow); }
+  .zone-hot  { background: rgba(0,255,136,0.15); color: var(--green); }
+  .zone-dead { background: rgba(100,100,100,0.15); color: var(--gray); }
+  .zone-power { background: rgba(0,170,255,0.15); color: var(--blue); }
+
+  /* P&L Tracker */
+  .pnl-tracker {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    margin-bottom: 16px;
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 16px;
+  }
+  .pnl-item { text-align: center; }
+  .pnl-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+  .pnl-val { font-size: 22px; font-weight: 800; }
+
+  /* Progress to target */
+  .target-bar-wrap { margin-top: 12px; }
+  .target-bar-track { height: 10px; background: var(--bg3); border-radius: 5px; overflow: hidden; }
+  .target-bar-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--green2), var(--green)); transition: width 0.8s; }
+  .target-pct { text-align: right; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes blink {
+    0%, 100% { box-shadow: var(--glow-green); }
+    50% { box-shadow: none; }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  .scanline {
+    position: fixed; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(transparent, rgba(0,170,255,0.05), transparent);
+    animation: scanline 8s linear infinite;
+    pointer-events: none; z-index: 999;
+  }
+
+  .pulse-live {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); margin-right: 6px;
+    animation: pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  .action-main { animation: slideIn 0.5s ease; }
+
+  /* Adjustable settings sidebar */
+  .settings-bar {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .settings-bar label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); display: block; margin-bottom: 4px; }
+  .settings-bar input[type=range] { width: 100px; accent-color: var(--blue); }
+  .settings-bar input[type=number] {
+    width: 70px; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 8px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;
+  }
+  .settings-bar select {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 10px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none; cursor: pointer;
+  }
+
+  .sim-btn {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; cursor: pointer; letter-spacing: 1px; transition: all 0.3s;
+  }
+  .sim-btn:hover { background: var(--blue); border-color: var(--blue); color: white; }
+  .sim-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+
+  /* ── MULTI TIMEFRAME CARD ── */
+  .mtf-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    margin-bottom: 16px;
+    position: relative; overflow: hidden;
+  }
+  .mtf-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--green), var(--yellow), var(--red));
+  }
+  .mtf-title-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .mtf-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+  .mtf-verdict {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 16px; border-radius: 8px; border: 1px solid;
+    font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    transition: all 0.5s;
+  }
+
+  /* The stacked timeframe rows */
+  .mtf-grid {
+    display: grid;
+    grid-template-columns: 110px 1fr 90px 90px 90px 90px 120px;
+    gap: 0;
+    align-items: center;
+  }
+  .mtf-header {
+    display: grid;
+    grid-template-columns: 110px 1fr 90px 90px 90px 90px 120px;
+    gap: 0; margin-bottom: 8px;
+  }
+  .mtf-col-label {
+    font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); padding: 0 8px; text-align: center;
+  }
+  .mtf-col-label:first-child { text-align: left; padding-left: 0; }
+
+  .mtf-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 90px 90px 90px 90px 120px;
+    gap: 0; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+    border-radius: 6px;
+  }
+  .mtf-row:last-child { border-bottom: none; }
+  .mtf-row:hover { background: rgba(255,255,255,0.02); }
+
+  /* Timeframe label pill */
+  .mtf-tf {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mtf-tf-badge {
+    font-size: 13px; font-weight: 800; padding: 4px 10px;
+    border-radius: 6px; letter-spacing: 1px; min-width: 48px; text-align: center;
+    border: 1px solid;
+  }
+  .tf-badge-1m  { background: rgba(100,100,100,0.15); color: #888; border-color: #333; }
+  .tf-badge-5m  { background: rgba(0,170,255,0.12);   color: var(--blue);   border-color: rgba(0,170,255,0.3); }
+  .tf-badge-15m { background: rgba(0,255,136,0.12);   color: var(--green);  border-color: rgba(0,255,136,0.3); }
+  .tf-badge-30m { background: rgba(255,209,0,0.12);   color: var(--yellow); border-color: rgba(255,209,0,0.3); }
+  .tf-badge-1h  { background: rgba(255,136,0,0.12);   color: var(--orange); border-color: rgba(255,136,0,0.3); }
+  .tf-badge-4h  { background: rgba(255,51,85,0.12);   color: var(--red);    border-color: rgba(255,51,85,0.3); }
+  .tf-role { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+
+  /* Mini sparkline bar representing price vs EMA */
+  .mtf-sparkline {
+    padding: 0 12px; position: relative;
+  }
+  .spark-track {
+    height: 28px; background: var(--bg3); border-radius: 4px;
+    position: relative; overflow: hidden;
+  }
+  .spark-ema9  { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--blue);   opacity: 0.7; }
+  .spark-ema21 { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--yellow); opacity: 0.7; }
+  .spark-ema50 { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.3); }
+  .spark-price { position: absolute; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; z-index: 2; }
+  .spark-fill  { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.15; }
+  .spark-label { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-size: 8px; color: var(--text-dim); }
+
+  /* Trend cell */
+  .mtf-trend {
+    text-align: center; font-size: 12px; font-weight: 800;
+    letter-spacing: 0.5px; padding: 0 6px;
+  }
+  /* EMA stack cell */
+  .mtf-ema { text-align: center; font-size: 10px; padding: 0 6px; }
+  /* RSI cell */
+  .mtf-rsi { text-align: center; font-size: 11px; font-weight: 700; padding: 0 6px; }
+  /* MACD cell */
+  .mtf-macd { text-align: center; font-size: 11px; padding: 0 6px; }
+
+  /* Signal strength for this TF */
+  .mtf-signal {
+    text-align: center; padding: 0 6px;
+  }
+  .mtf-signal-dot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 80px; padding: 4px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    border: 1px solid;
+  }
+
+  /* Alignment summary bar */
+  .mtf-alignment {
+    margin-top: 16px; padding: 14px 16px;
+    background: var(--bg3); border-radius: 10px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+  .mtf-align-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); flex-shrink: 0; }
+  .mtf-align-dots  { display: flex; gap: 6px; align-items: center; }
+  .align-dot {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px; border: 1px solid;
+    transition: all 0.5s;
+  }
+  .align-dot.bull { background: rgba(0,255,136,0.2); color: var(--green); border-color: rgba(0,255,136,0.4); box-shadow: 0 0 8px rgba(0,255,136,0.2); }
+  .align-dot.bear { background: rgba(255,51,85,0.2);  color: var(--red);   border-color: rgba(255,51,85,0.4);  box-shadow: 0 0 8px rgba(255,51,85,0.2); }
+  .align-dot.neut { background: rgba(100,100,100,0.2); color: var(--gray); border-color: #333; }
+
+  .mtf-advice {
+    flex: 1; font-size: 12px; line-height: 1.6; padding: 10px 14px;
+    background: var(--panel); border-radius: 8px; border: 1px solid var(--border);
+    min-width: 200px;
+  }
+
+  /* Conflict warning */
+  .mtf-conflict {
+    margin-top: 10px; padding: 10px 14px; border-radius: 8px;
+    font-size: 11px; line-height: 1.6; display: none;
+  }
+  .mtf-conflict.show { display: block; }
+  .mtf-conflict.warn { background: rgba(255,209,0,0.08); border: 1px solid rgba(255,209,0,0.3); color: var(--yellow); }
+  .mtf-conflict.good { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.3); color: var(--green); }
+
+  /* Simulate MTF buttons */
+  .mtf-sim-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .mtf-sim-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr 1fr; }
+    .key-numbers { grid-template-columns: repeat(3, 1fr); }
+    .action-main { font-size: 44px; }
+    .bottom-grid { grid-template-columns: 1fr; }
+    .pnl-tracker { grid-template-columns: repeat(2,1fr); }
+    .mtf-grid, .mtf-header, .mtf-row { grid-template-columns: 80px 1fr 70px 70px 70px; }
+    .mtf-macd, .mtf-col-label:nth-child(7), .mtf-signal { display: none; }
+  }
+
+  /* ── TRADINGVIEW SECTION ── */
+  .tv-section {
+    margin-bottom: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .tv-section::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #2962ff, #00bcd4, #2962ff);
+    background-size: 200%% 100%%;
+    animation: tvShimmer 3s linear infinite;
+    z-index: 2;
+  }
+  @keyframes tvShimmer {
+    0%%   { background-position: 0%%   0%%; }
+    100%% { background-position: 200%% 0%%; }
+  }
+  .tv-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; flex-wrap: wrap; gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .tv-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .tv-logo {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #2962ff;
+  }
+  .tv-live-badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(0,255,136,0.12); border: 1px solid rgba(0,255,136,0.3);
+    font-size: 9px; font-weight: 700; color: var(--green); letter-spacing: 1px;
+  }
+  .tv-live-dot { width: 6px; height: 6px; border-radius: 50%%; background: var(--green); animation: pulse 1.2s infinite; }
+  .tv-ticker-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tv-tab {
+    padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+  }
+  .tv-tab.active { background: rgba(41,98,255,0.2); border-color: #2962ff; color: #2962ff; }
+  .tv-tab:hover  { border-color: var(--blue); color: var(--blue); }
+  .tv-interval-tabs { display: flex; gap: 4px; }
+  .tv-itab {
+    padding: 3px 10px; border-radius: 5px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+  }
+  .tv-itab.active { background: rgba(255,209,0,0.15); border-color: var(--yellow); color: var(--yellow); }
+  .tv-itab:hover  { border-color: var(--text-dim); color: var(--text); }
+  .tv-tape-wrap  { border-bottom: 1px solid var(--border); height: 46px; overflow: hidden; background: #131722; }
+  .tv-tape-wrap iframe { width: 100%%; height: 100%%; border: none; display: block; }
+  .tv-chart-wrap { position: relative; width: 100%%; height: 500px; background: #131722; }
+  .tv-chart-wrap iframe { width: 100%%; height: 100%%; border: none; display: block; }
+  /* MTF mini chart grid — 6 equal columns, one per timeframe */
+  .tv-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    background: #131722;
+    border-top: 1px solid #2a2e39;
+  }
+  .tv-mini-cell {
+    position: relative;
+    height: 240px;                   /* Matches widget height — candles + RSI pane */
+    border-right: 1px solid #2a2e39;
+    border-top: 2px solid #2a2e39;
+    overflow: hidden;
+    background: #131722;
+  }
+  .tv-mini-cell:last-child { border-right: none; }
+
+  /* TF label sits on TOP of the chart — NO blur, solid background only */
+  .tv-mini-label {
+    position: absolute;
+    top: 6px; left: 8px;
+    z-index: 20;
+    font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+    padding: 3px 9px; border-radius: 4px;
+    pointer-events: none;
+    /* No backdrop-filter — it was making the entire chart look blurry */
+  }
+
+  /* TradingView injects a div + iframe — force both to fill the cell */
+  .tv-mini-cell > div {
+    position: absolute !important;
+    inset: 0 !important;
+    height: 240px !important;
+    width: 100% !important;
+  }
+  .tv-mini-cell iframe {
+    width: 100% !important;
+    height: 240px !important;
+    border: none;
+    display: block;
+  }
+  .tv-note {
+    padding: 8px 16px; background: rgba(41,98,255,0.05);
+    border-top: 1px solid rgba(41,98,255,0.15);
+    font-size: 10px; color: #5d8aff; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="wrapper">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">⚡ TRADE OPS</div>
+      <div>
+        <div class="ticker-label">Ticker</div>
+        <select class="ticker-select" id="tickerSel" onchange="updateTicker()">
+          <option>SPY</option><option>QQQ</option><option>NVDA</option>
+          <option>AAPL</option><option>TSLA</option><option>MSFT</option>
+        </select>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:2px">MARKET TIME (ET)</div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="pulse-live"></span>
+      <span class="session-badge" id="sessionBadge">LOADING</span>
+    </div>
+  </div>
+
+  <!-- SETTINGS BAR -->
+  <div class="settings-bar">
+    <div>
+      <label>Min Score (1–9)</label>
+      <input type="range" min="1" max="9" value="6" id="minScore" oninput="document.getElementById('minScoreVal').textContent=this.value;recalcAll()">
+      <span id="minScoreVal" style="color:var(--blue);font-weight:700;margin-left:6px">6</span>
+    </div>
+    <div>
+      <label>Entry Price $</label>
+      <input type="number" id="entryPrice" value="551.00" step="0.01" oninput="recalcTrade()">
+    </div>
+    <div>
+      <label>Stop Price $</label>
+      <input type="number" id="stopPrice" value="549.50" step="0.01" oninput="recalcTrade()">
+    </div>
+    <div>
+      <label>Risk Per Trade $</label>
+      <input type="number" id="riskAmt" value="500" oninput="recalcTrade()">
+    </div>
+    <div>
+      <label>Account $</label>
+      <input type="number" id="accountSize" value="2000000" oninput="recalcTrade()">
+    </div>
+    <div>
+      <label>Simulate Market</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="sim-btn" onclick="simulate('long')">📈 LONG</button>
+        <button class="sim-btn" onclick="simulate('short')">📉 SHORT</button>
+        <button class="sim-btn" onclick="simulate('wait')">⏳ WAIT</button>
+        <button class="sim-btn" onclick="simulate('dead')">💤 DEAD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TRADINGVIEW LIVE CHARTS ══ -->
+  <div class="tv-section">
+
+    <!-- Header bar -->
+    <div class="tv-header">
+      <div class="tv-header-left">
+        <div class="tv-logo">
+          <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="18" height="18" rx="3" fill="#2962FF"/>
+            <path d="M3 12.5L6.5 8L9.5 11L12.5 7L15 9.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          TRADINGVIEW — LIVE
+        </div>
+        <div class="tv-live-badge"><div class="tv-live-dot"></div>REAL-TIME</div>
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px">Works on weekends · Shows historical data always · Powered by TradingView</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="tv-ticker-tabs" id="tvTickerTabs">
+          <button class="tv-tab active" onclick="switchTVTicker('SPY',this)">SPY</button>
+          <button class="tv-tab" onclick="switchTVTicker('QQQ',this)">QQQ</button>
+          <button class="tv-tab" onclick="switchTVTicker('NVDA',this)">NVDA</button>
+          <button class="tv-tab" onclick="switchTVTicker('AAPL',this)">AAPL</button>
+          <button class="tv-tab" onclick="switchTVTicker('TSLA',this)">TSLA</button>
+          <button class="tv-tab" onclick="switchTVTicker('MSFT',this)">MSFT</button>
+        </div>
+        <div class="tv-interval-tabs" id="tvIntervalTabs">
+          <button class="tv-itab" onclick="switchTVInterval('1',this)">1M</button>
+          <button class="tv-itab active" onclick="switchTVInterval('5',this)">5M</button>
+          <button class="tv-itab" onclick="switchTVInterval('15',this)">15M</button>
+          <button class="tv-itab" onclick="switchTVInterval('30',this)">30M</button>
+          <button class="tv-itab" onclick="switchTVInterval('60',this)">1H</button>
+          <button class="tv-itab" onclick="switchTVInterval('240',this)">4H</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticker Tape — official TradingView script widget -->
+    <div class="tv-tape-wrap">
+      <div class="tradingview-widget-container" style="height:46px;overflow:hidden">
+        <div class="tradingview-widget-container__widget" id="tv-tape-widget"></div>
+      </div>
+    </div>
+
+    <!-- MAIN chart — official TradingView Advanced Chart widget -->
+    <div class="tv-chart-wrap">
+      <div class="tradingview-widget-container" style="height:500px;width:100%">
+        <div class="tradingview-widget-container__widget" id="tv-main-widget" style="height:500px;width:100%"></div>
+      </div>
+    </div>
+
+    <!-- MTF label bar with TF legend -->
+    <div style="padding:10px 16px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">
+        📊 Multi-Timeframe Live View — Read LEFT → RIGHT. Left = fastest signal. Right = biggest boss.
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;font-size:9px;font-weight:700;letter-spacing:1px">
+        <span style="color:#aaa;background:rgba(150,150,150,0.15);padding:2px 8px;border-radius:4px;border:1px solid #aaa4">1M</span>
+        <span style="color:#999">→</span>
+        <span style="color:#00aaff;background:rgba(0,170,255,0.12);padding:2px 8px;border-radius:4px;border:1px solid #00aaff44">5M</span>
+        <span style="color:#999">→</span>
+        <span style="color:#00ff88;background:rgba(0,255,136,0.12);padding:2px 8px;border-radius:4px;border:1px solid #00ff8844">15M</span>
+        <span style="color:#999">→</span>
+        <span style="color:#ffd100;background:rgba(255,209,0,0.12);padding:2px 8px;border-radius:4px;border:1px solid #ffd10044">30M</span>
+        <span style="color:#999">→</span>
+        <span style="color:#ff8800;background:rgba(255,136,0,0.12);padding:2px 8px;border-radius:4px;border:1px solid #ff880044">1H</span>
+        <span style="color:#999">→</span>
+        <span style="color:#ff3355;background:rgba(255,51,85,0.15);padding:2px 8px;border-radius:4px;border:1px solid #ff335566">4H 👑</span>
+      </div>
+    </div>
+
+    <!-- MTF MINI CHARTS grid — each is its own TradingView widget -->
+    <div class="tv-mini-grid" id="tvMiniGrid">
+      <!-- Filled by JS renderMiniCharts() -->
+    </div>
+
+    <!-- Info note -->
+    <div class="tv-note">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="#2962ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      ✅ Charts use TradingView's official widget — works on weekends, file:// and online. Historical candles always visible. Live prices during market hours.
+    </div>
+  </div>
+
+  <!-- BIG ACTION BOX -->
+  <div class="action-hero" id="actionHero">
+    <div class="action-left">
+      <div class="action-tag" id="actionTag">COMMAND CENTER</div>
+      <div class="action-main" id="actionMain">LOADING...</div>
+      <div class="action-sub" id="actionSub">Analyzing market conditions...</div>
+    </div>
+    <div class="action-right">
+      <div class="score-ring-wrap">
+        <div class="score-label">Signal Score</div>
+        <div class="score-big" id="scoreBig">—<span class="score-denom">/9</span></div>
+        <div class="grade-badge" id="gradeBadge">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 KEY NUMBERS -->
+  <div class="key-numbers">
+    <div class="kn-card green">
+      <div class="kn-label">Shares to Buy</div>
+      <div class="kn-value" id="sharesNum" style="color:var(--green)">—</div>
+      <div class="kn-sub" id="sharesSub">Based on $500 risk</div>
+      <div class="kn-icon">📦</div>
+    </div>
+    <div class="kn-card yellow">
+      <div class="kn-label">Target Profit</div>
+      <div class="kn-value" id="targetNum" style="color:var(--yellow)">—</div>
+      <div class="kn-sub" id="targetSub">2:1 reward/risk</div>
+      <div class="kn-icon">🎯</div>
+    </div>
+    <div class="kn-card red">
+      <div class="kn-label">Stop Loss at</div>
+      <div class="kn-value" id="stopNum" style="color:var(--red)">—</div>
+      <div class="kn-sub" id="stopSub">Exit if price hits this</div>
+      <div class="kn-icon">🛑</div>
+    </div>
+  </div>
+
+  <!-- INDICATOR CARDS -->
+  <div class="main-grid" id="mainGrid">
+
+    <!-- VWAP -->
+    <div class="ind-card" id="card-vwap">
+      <div class="ind-header">
+        <div class="ind-name">VWAP — Direction Bias</div>
+        <div class="ind-status" id="st-vwap">—</div>
+      </div>
+      <div class="ind-value" id="val-vwap" style="color:var(--orange)">—</div>
+      <div class="ind-meaning" id="mean-vwap">The "fair price" for today. Like a river — trade WITH the current.</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-vwap" style="width:50%;background:var(--orange)"></div>
+      </div>
+      <div class="bar-labels"><span>SELL ZONE</span><span>VWAP</span><span>BUY ZONE</span></div>
+    </div>
+
+    <!-- ADX -->
+    <div class="ind-card" id="card-adx">
+      <div class="ind-header">
+        <div class="ind-name">ADX — Trend Power ⚡</div>
+        <div class="ind-status" id="st-adx">—</div>
+      </div>
+      <div class="ind-value" id="val-adx">—</div>
+      <div class="ind-meaning" id="mean-adx">How strong is the trend? Below 20 = SKIP everything. Like wind speed for a sailboat.</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-adx" style="width:0%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))"></div>
+      </div>
+      <div class="bar-labels"><span>0 CHOPPY</span><span>20 TREND</span><span>50 STRONG</span></div>
+    </div>
+
+    <!-- RSI -->
+    <div class="ind-card" id="card-rsi">
+      <div class="ind-header">
+        <div class="ind-name">RSI — Momentum Fuel</div>
+        <div class="ind-status" id="st-rsi">—</div>
+      </div>
+      <div class="ind-value" id="val-rsi">—</div>
+      <div class="ind-meaning" id="mean-rsi">Is the move running out of gas? 50–70 = healthy long. 30–50 = healthy short.</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-rsi" style="width:50%;background:var(--blue)"></div>
+      </div>
+      <div class="bar-labels"><span>0 OVERSOLD</span><span>50 NEUTRAL</span><span>100 OB</span></div>
+    </div>
+
+    <!-- MACD -->
+    <div class="ind-card" id="card-macd">
+      <div class="ind-header">
+        <div class="ind-name">MACD — Momentum Engine</div>
+        <div class="ind-status" id="st-macd">—</div>
+      </div>
+      <div class="ind-value" id="val-macd">—</div>
+      <div class="ind-meaning" id="mean-macd">Is the engine revving UP or slowing DOWN? Like a car accelerating — we want full throttle.</div>
+      <div class="checklist" id="checks-macd"></div>
+    </div>
+
+    <!-- STOCHASTIC -->
+    <div class="ind-card" id="card-stoch">
+      <div class="ind-header">
+        <div class="ind-name">Stochastic — Early Warning</div>
+        <div class="ind-status" id="st-stoch">—</div>
+      </div>
+      <div class="ind-value" id="val-stoch">—</div>
+      <div class="ind-meaning" id="mean-stoch">Fires BEFORE price moves — like a smoke detector before the fire. Cross above 20 = buyers waking up.</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-stoch" style="width:50%;background:var(--blue)"></div>
+      </div>
+      <div class="bar-labels"><span>0</span><span>20 Buy</span><span>50</span><span>80 Sell</span><span>100</span></div>
+    </div>
+
+    <!-- VOLUME -->
+    <div class="ind-card" id="card-vol">
+      <div class="ind-header">
+        <div class="ind-name">Volume — Crowd Conviction</div>
+        <div class="ind-status" id="st-vol">—</div>
+      </div>
+      <div class="ind-value" id="val-vol">—</div>
+      <div class="ind-meaning" id="mean-vol">Are the BIG players buying? Need 150%+ of average. Like a crowd — small crowd = fake breakout.</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="bar-vol" style="width:30%;background:var(--blue)"></div>
+      </div>
+      <div class="bar-labels"><span>0%</span><span>100% AVG</span><span>150% ✓</span><span>200%+</span></div>
+    </div>
+
+  </div>
+
+  <!-- ══ MULTI TIMEFRAME ANALYSIS CARD ══ -->
+  <div class="mtf-card">
+    <div class="mtf-title-row">
+      <div>
+        <div class="mtf-title">📊 Multi-Timeframe Analysis — The Big Picture</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px">Higher timeframes = the boss. Lower timeframes = the door. Trade when ALL point the same way.</div>
+      </div>
+      <div class="mtf-verdict" id="mtf-verdict">Analyzing...</div>
+    </div>
+
+    <!-- Simulate scenarios -->
+    <div class="mtf-sim-bar">
+      <span class="mtf-sim-label">Simulate:</span>
+      <button class="sim-btn" onclick="simulateMTF('all-bull')">🟢 All Bullish</button>
+      <button class="sim-btn" onclick="simulateMTF('all-bear')">🔴 All Bearish</button>
+      <button class="sim-btn" onclick="simulateMTF('conflict-bu')">⚡ HTF Bear / LTF Bull</button>
+      <button class="sim-btn" onclick="simulateMTF('conflict-ub')">⚡ HTF Bull / LTF Bear</button>
+      <button class="sim-btn" onclick="simulateMTF('mixed')">🌀 Mixed / Choppy</button>
+    </div>
+
+    <!-- Column headers -->
+    <div class="mtf-header">
+      <div class="mtf-col-label" style="text-align:left">Timeframe</div>
+      <div class="mtf-col-label">Price vs EMAs</div>
+      <div class="mtf-col-label">Trend</div>
+      <div class="mtf-col-label">EMA Stack</div>
+      <div class="mtf-col-label">RSI</div>
+      <div class="mtf-col-label">MACD</div>
+      <div class="mtf-col-label">Signal</div>
+    </div>
+
+    <!-- TF Rows injected by JS -->
+    <div id="mtf-rows"></div>
+
+    <!-- Alignment bar + advice -->
+    <div class="mtf-alignment">
+      <div class="mtf-align-label">Alignment</div>
+      <div class="mtf-align-dots" id="mtf-align-dots"></div>
+      <div class="mtf-advice" id="mtf-advice">Loading...</div>
+    </div>
+    <div class="mtf-conflict" id="mtf-conflict"></div>
+  </div>
+
+  <!-- BOTTOM: TRADE PLAN + TIMELINE -->
+  <div class="bottom-grid">
+
+    <div class="trade-plan">
+      <div class="tp-title">📋 Your Exact Trade Plan Right Now</div>
+      <div class="tp-row">
+        <div class="tp-label">Action</div>
+        <div class="tp-val" id="tp-action" style="color:var(--yellow)">—</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Enter At</div>
+        <div class="tp-val" id="tp-entry">$—</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Stop Loss</div>
+        <div class="tp-val" id="tp-stop" style="color:var(--red)">$— ← EXIT HERE NO MATTER WHAT</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Target 1 (1:1)</div>
+        <div class="tp-val" id="tp-t1" style="color:var(--green)">$—</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Target 2 (2:1) ⭐</div>
+        <div class="tp-val" id="tp-t2" style="color:var(--green)">$—</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Shares to Trade</div>
+        <div class="tp-val" id="tp-shares">—</div>
+      </div>
+      <div class="tp-row">
+        <div class="tp-label">Max Risk</div>
+        <div class="tp-val" id="tp-risk" style="color:var(--red)">$500</div>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-title">⏰ Trading Session Map</div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)">
+        <span>9:30 AM</span><span>10:00</span><span>11:00</span><span>2:00 PM</span><span>3:00</span><span>4:00 PM</span>
+      </div>
+      <div class="tl-track">
+        <div class="tl-progress" id="tl-progress" style="width:0%"></div>
+        <div class="tl-needle" id="tl-needle" style="left:0%"></div>
+      </div>
+      <div class="tl-zones">
+        <div class="tl-zone zone-or inactive" id="zone-or">🟡 Opening Range<br>WATCH ONLY</div>
+        <div class="tl-zone zone-hot inactive" id="zone-hot">🟢 Hot Zone<br>TRADE HERE</div>
+        <div class="tl-zone zone-dead inactive" id="zone-dead">💤 Dead Zone<br>AVOID</div>
+        <div class="tl-zone zone-power inactive" id="zone-power">⚡ Power Hour<br>2ND CHANCE</div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="tp-title" style="margin-bottom:8px">📌 Right Now You Should:</div>
+        <div id="session-advice" style="font-size:13px;line-height:1.7;color:var(--text)">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PnL TRACKER -->
+  <div class="pnl-tracker">
+    <div class="pnl-item">
+      <div class="pnl-label">Today's P&L</div>
+      <div class="pnl-val" id="pnl-today" style="color:var(--green)">$0</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="sim-btn" onclick="addPnl(500)"  style="padding:4px 10px;font-size:10px">+$500</button>
+        <button class="sim-btn" onclick="addPnl(-250)" style="padding:4px 10px;font-size:10px">-$250</button>
+        <button class="sim-btn" onclick="resetPnl()"   style="padding:4px 10px;font-size:10px">Reset</button>
+      </div>
+    </div>
+    <div class="pnl-item">
+      <div class="pnl-label">Daily Target</div>
+      <div class="pnl-val" style="color:var(--yellow)">$1,000</div>
+      <div class="target-bar-wrap">
+        <div class="target-bar-track"><div class="target-bar-fill" id="target-bar" style="width:0%"></div></div>
+        <div class="target-pct" id="target-pct">0% of goal</div>
+      </div>
+    </div>
+    <div class="pnl-item">
+      <div class="pnl-label">Daily Stop Loss</div>
+      <div class="pnl-val" style="color:var(--red)">-$2,000</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px" id="daily-status">✅ Still Trading</div>
+    </div>
+    <div class="pnl-item">
+      <div class="pnl-label">Trades Today</div>
+      <div class="pnl-val" id="trade-count" style="color:var(--blue)">0</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Max 3 per day</div>
+    </div>
+  </div>
+
+  <!-- SIGNAL CHECKLIST FULL -->
+  <div class="ind-card" style="margin-bottom:16px">
+    <div class="ind-header">
+      <div class="ind-name">✅ Full Signal Checklist — All 9 Conditions</div>
+      <div class="ind-status" id="st-overall">ANALYZING</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px" id="full-checklist"></div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let state = {
+  mode: 'wait',   // 'long','short','wait','dead','no-trade'
+  adx: 24,
+  rsi: 58,
+  macdBull: true,
+  macdHist: 0.12,
+  stochK: 62,
+  stochD: 55,
+  vwapAbove: true,
+  emaBull: true,
+  volume: 1.7,
+  volInc: true,
+  strongCandle: true,
+  bullCandle: true,
+  htfBull: true,
+  consolidated: true,
+  divergence: false,
+  orHigh: 552.30,
+  orLow: 550.10,
+  vwapVal: 551.20,
+  pnl: 0,
+  trades: 0
+};
+
+function simulate(mode) {
+  const presets = {
+    long:  { mode:'long',  adx:32, rsi:61, macdBull:true,  macdHist:0.18, stochK:65, stochD:58, vwapAbove:true,  emaBull:true,  volume:2.1, volInc:true,  strongCandle:true,  bullCandle:true,  htfBull:true,  consolidated:true,  divergence:false },
+    short: { mode:'short', adx:28, rsi:41, macdBull:false, macdHist:-0.15,stochK:35, stochD:42, vwapAbove:false, emaBull:false, volume:1.8, volInc:true,  strongCandle:true,  bullCandle:false, htfBull:false, consolidated:true,  divergence:false },
+    wait:  { mode:'wait',  adx:18, rsi:52, macdBull:false, macdHist:0.02, stochK:50, stochD:50, vwapAbove:true,  emaBull:true,  volume:0.9, volInc:false, strongCandle:false, bullCandle:true,  htfBull:true,  consolidated:false, divergence:false },
+    dead:  { mode:'dead',  adx:14, rsi:49, macdBull:false, macdHist:-0.03,stochK:48, stochD:50, vwapAbove:false, emaBull:false, volume:0.7, volInc:false, strongCandle:false, bullCandle:false, htfBull:false, consolidated:false, divergence:true  },
+  };
+  Object.assign(state, presets[mode]);
+  recalcAll();
+  // Sync MTF panel — no recursion, direct call
+  const mtfMap = { long:'all-bull', short:'all-bear', wait:'conflict-ub', dead:'mixed' };
+  simulateMTF(mtfMap[mode] || 'mixed');
+}
+
+// ══════════════════════════════════════════════════════
+// CLOCK & SESSION
+// ══════════════════════════════════════════════════════
+function getETTime() {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', {timeZone:'America/New_York'}));
+  return et;
+}
+
+function updateClock() {
+  const et = getETTime();
+  const h = et.getHours(), m = et.getMinutes(), s = et.getSeconds();
+  document.getElementById('clock').textContent =
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+  const totalMin = h * 60 + m;
+  const mktOpen = 9*60+30, mktClose = 16*60;
+  const orEnd = 10*60, deadStart = 11*60, deadEnd = 14*60, powerStart = 15*60;
+
+  let session, sessionColor, sessionBg, advice;
+  const pct = Math.max(0, Math.min(100, (totalMin - mktOpen) / (mktClose - mktOpen) * 100));
+  document.getElementById('tl-progress').style.width = pct + '%';
+  document.getElementById('tl-needle').style.left = pct + '%';
+
+  const zones = ['zone-or','zone-hot','zone-dead','zone-power'];
+  zones.forEach(z => document.getElementById(z).classList.add('inactive'));
+
+  if (totalMin < mktOpen) {
+    session = 'PRE-MARKET'; sessionColor = '#ffd100'; sessionBg = 'rgba(255,209,0,0.15)';
+    advice = '☕ Market not open yet.<br>Review your watchlist and note pre-market gaps.<br>Plan your OR levels. <strong>Do NOT trade yet.</strong>';
+  } else if (totalMin < orEnd) {
+    session = '🟡 OPENING RANGE'; sessionColor = '#ffd100'; sessionBg = 'rgba(255,209,0,0.15)';
+    advice = '👀 <strong>WATCH ONLY — Do NOT enter any trades.</strong><br>Let the first 30 minutes form the high and low range.<br>This is your setup period. Observe, don\'t react.';
+    document.getElementById('zone-or').classList.remove('inactive');
+  } else if (totalMin < deadStart) {
+    session = '🟢 HOT ZONE'; sessionColor = '#00ff88'; sessionBg = 'rgba(0,255,136,0.15)';
+    advice = '✅ <strong>PRIME TRADING WINDOW — Best time to enter.</strong><br>Look for breakouts above OR High (LONG) or below OR Low (SHORT).<br>Check your score — need 6/9 minimum before entering.';
+    document.getElementById('zone-hot').classList.remove('inactive');
+  } else if (totalMin < deadEnd) {
+    session = '💤 DEAD ZONE'; sessionColor = '#718096'; sessionBg = 'rgba(100,100,100,0.15)';
+    advice = '⛔ <strong>AVOID TRADING.</strong> This is the choppiest part of the day.<br>Institutions are at lunch. Price whipsaws randomly.<br>Review your morning trades. Prepare for power hour.';
+    document.getElementById('zone-dead').classList.remove('inactive');
+  } else if (totalMin < powerStart) {
+    session = '📊 AFTERNOON'; sessionColor = '#00aaff'; sessionBg = 'rgba(0,170,255,0.15)';
+    advice = '👀 Transitioning to power hour. Volume picking up.<br>Only take A-grade signals (8+/9) right now.<br>If you already hit $1,000 — <strong>STOP TRADING.</strong>';
+    document.getElementById('zone-hot').classList.remove('inactive');
+  } else if (totalMin < mktClose) {
+    session = '⚡ POWER HOUR'; sessionColor = '#00aaff'; sessionBg = 'rgba(0,170,255,0.15)';
+    advice = '⚡ <strong>POWER HOUR — Second best trading window.</strong><br>Volume surges into close. Look for VWAP bounce signals.<br>Stop by 3:55 PM. <strong>Never hold positions into close.</strong>';
+    document.getElementById('zone-power').classList.remove('inactive');
+  } else {
+    session = '⛔ MARKET CLOSED'; sessionColor = '#718096'; sessionBg = 'rgba(100,100,100,0.15)';
+    advice = '🏁 Market is closed. <strong>Do NOT trade.</strong><br>Review today\'s trades in your journal.<br>Plan tomorrow\'s watchlist.';
+  }
+
+  const badge = document.getElementById('sessionBadge');
+  badge.textContent = session;
+  badge.style.background = sessionBg;
+  badge.style.color = sessionColor;
+  badge.style.border = `1px solid ${sessionColor}33`;
+  document.getElementById('session-advice').innerHTML = advice;
+}
+
+// ══════════════════════════════════════════════════════
+// SCORE ENGINE
+// ══════════════════════════════════════════════════════
+function calcScore() {
+  const s = state;
+  const isLong = s.mode === 'long';
+  const isShort = s.mode === 'short';
+
+  return [
+    { label: '1. OR Breakout',        pass: isLong || isShort,                               val: isLong ? '↑ Above OR High' : isShort ? '↓ Below OR Low' : 'Waiting for breakout' },
+    { label: '2. VWAP Position',      pass: isLong ? s.vwapAbove : isShort ? !s.vwapAbove : false,   val: s.vwapAbove ? `Above $${s.vwapVal}` : `Below $${s.vwapVal}` },
+    { label: '3. EMA Stack (9/21)',   pass: isLong ? s.emaBull : isShort ? !s.emaBull : false,        val: s.emaBull ? 'EMA 9 > EMA 21 ✓' : 'EMA 9 < EMA 21 ✓' },
+    { label: '4. MACD Momentum',      pass: isLong ? s.macdBull : isShort ? !s.macdBull : false,      val: `Hist: ${s.macdHist > 0 ? '+' : ''}${s.macdHist.toFixed(2)} ${s.macdBull ? '▲' : '▼'}` },
+    { label: '5. ADX Trend Strength', pass: s.adx >= 20,                                     val: `${s.adx} — ${s.adx >= 30 ? 'STRONG ✓' : s.adx >= 20 ? 'TRENDING ✓' : 'CHOPPY ✗ SKIP!'}` },
+    { label: '6. RSI + No Divergence',pass: isLong ? (s.rsi>50 && s.rsi<70 && !s.divergence) : isShort ? (s.rsi<50 && s.rsi>30 && !s.divergence) : false, val: `RSI ${s.rsi} ${s.divergence ? '⚠ DIVERGENCE!' : '✓'}` },
+    { label: '7. Volume Surge',       pass: s.volume >= 1.5 && s.volInc,                     val: `${(s.volume * 100).toFixed(0)}% of avg ${s.volInc ? '↑ rising' : '↓ flat'}` },
+    { label: '8. Candle Quality',     pass: isLong ? (s.strongCandle && s.bullCandle) : isShort ? (s.strongCandle && !s.bullCandle) : false, val: s.strongCandle ? `${s.bullCandle?'🟢 Green':'🔴 Red'} strong body` : '⚠ Doji/weak bar' },
+    { label: '9. HTF + Consolidation',pass: (isLong ? s.htfBull : isShort ? !s.htfBull : false) && s.consolidated, val: `HTF ${s.htfBull ? 'Bullish' : 'Bearish'}, ${s.consolidated ? 'Tight ✓' : 'Wide ✗'}` },
+  ];
+}
+
+// ══════════════════════════════════════════════════════
+// TRADE CALCS
+// ══════════════════════════════════════════════════════
+function recalcTrade() {
+  const entry = parseFloat(document.getElementById('entryPrice').value) || 551;
+  const stop  = parseFloat(document.getElementById('stopPrice').value)  || 549.5;
+  const risk  = parseFloat(document.getElementById('riskAmt').value)    || 500;
+  const isShort = state.mode === 'short';
+
+  const dist = Math.abs(entry - stop);
+  const shares = dist > 0 ? Math.floor(risk / dist) : 0;
+  const t1 = isShort ? entry - dist : entry + dist;
+  const t2 = isShort ? entry - dist*2 : entry + dist*2;
+
+  document.getElementById('sharesNum').textContent = shares.toLocaleString();
+  document.getElementById('sharesSub').textContent = `Risk $${risk} ÷ $${dist.toFixed(2)}/share`;
+  document.getElementById('targetNum').textContent = `$${(shares * dist * 2).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+  document.getElementById('targetSub').textContent = `Target 2 at $${t2.toFixed(2)}`;
+  document.getElementById('stopNum').textContent   = `$${stop.toFixed(2)}`;
+  document.getElementById('stopSub').textContent   = `Risk: $${(shares * dist).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+
+  document.getElementById('tp-action').textContent  = state.mode === 'long' ? '🟢 BUY LONG' : state.mode === 'short' ? '🔴 SELL SHORT' : '⏳ WAIT — No Signal';
+  document.getElementById('tp-entry').textContent   = `$${entry.toFixed(2)}`;
+  document.getElementById('tp-stop').textContent    = `$${stop.toFixed(2)} ← EXIT HERE NO MATTER WHAT`;
+  document.getElementById('tp-t1').textContent      = `$${t1.toFixed(2)} (Take 50% off here)`;
+  document.getElementById('tp-t2').textContent      = `$${t2.toFixed(2)} (Take rest here) +$${(shares * dist * 2).toFixed(0)}`;
+  document.getElementById('tp-shares').textContent  = `${shares.toLocaleString()} shares`;
+  document.getElementById('tp-risk').textContent    = `$${(shares * dist).toFixed(0)}`;
+}
+
+// ══════════════════════════════════════════════════════
+// MAIN RENDER
+// ══════════════════════════════════════════════════════
+function recalcAll() {
+  const s = state;
+  const minScore = parseInt(document.getElementById('minScore').value);
+  const checks = calcScore();
+  const score = checks.filter(c => c.pass).length;
+  const signalFires = (s.mode === 'long' || s.mode === 'short') && score >= minScore;
+
+  // Grade
+  const grade = score >= 8 ? 'A ⭐' : score >= 6 ? 'B ✅' : score >= 4 ? 'C ⚠️' : 'D ❌';
+  const gradeColor = score >= 8 ? 'var(--green)' : score >= 6 ? 'var(--yellow)' : 'var(--red)';
+
+  // ── BIG ACTION BOX ──
+  const hero = document.getElementById('actionHero');
+  hero.className = 'action-hero ' + (signalFires ? s.mode : s.mode === 'dead' ? 'no-trade' : 'wait');
+
+  let mainText, subText, tagText, mainColor;
+  if (s.mode === 'dead' || s.adx < 20) {
+    mainText = s.adx < 20 ? 'SKIP — CHOPPY' : '💤 NO TRADE';
+    subText  = s.adx < 20
+      ? `ADX is ${s.adx} — market has no trend. Breakouts will FAIL. Close TradingView and come back in 30 min.`
+      : 'Dead zone (11AM–2PM). Market is choppy. Institutions are at lunch. Review your morning trades instead.';
+    tagText  = 'ACTION';
+    mainColor = 'var(--gray)';
+  } else if (!signalFires && (s.mode === 'long' || s.mode === 'short')) {
+    mainText = '❌ SKIP TRADE';
+    subText  = `Score is ${score}/9 — below your minimum of ${minScore}. Too many conditions are failing. A weak signal = a likely loss. Wait for a better setup.`;
+    tagText  = 'SIGNAL QUALITY TOO LOW';
+    mainColor = 'var(--red)';
+  } else if (s.mode === 'long' && signalFires) {
+    mainText = '🟢 BUY LONG';
+    subText  = `${score}/9 conditions confirmed. Price broke above OR High with volume. VWAP, MACD, ADX, RSI all aligned bullish. Enter now, stop below OR Low.`;
+    tagText  = '✅ HIGH QUALITY SIGNAL — TAKE IT';
+    mainColor = 'var(--green)';
+  } else if (s.mode === 'short' && signalFires) {
+    mainText = '🔴 SELL SHORT';
+    subText  = `${score}/9 conditions confirmed. Price broke below OR Low with volume. VWAP, MACD, ADX, RSI all aligned bearish. Enter now, stop above OR High.`;
+    tagText  = '✅ HIGH QUALITY SIGNAL — TAKE IT';
+    mainColor = 'var(--red)';
+  } else {
+    mainText = '⏳ STAND BY';
+    subText  = `Watching for a breakout of OR High ($${s.orHigh}) or OR Low ($${s.orLow}). ADX is ${s.adx} — trend is ${s.adx >= 20 ? 'developing' : 'weak'}. Patience.`;
+    tagText  = 'NO SIGNAL YET — WAIT';
+    mainColor = 'var(--yellow)';
+  }
+
+  document.getElementById('actionTag').textContent  = tagText;
+  document.getElementById('actionMain').textContent = mainText;
+  document.getElementById('actionMain').style.color = mainColor;
+  document.getElementById('actionSub').textContent  = subText;
+  document.getElementById('scoreBig').innerHTML     = `${score}<span class="score-denom">/9</span>`;
+  document.getElementById('scoreBig').style.color   = gradeColor;
+  const gb = document.getElementById('gradeBadge');
+  gb.textContent = grade;
+  gb.style.background = gradeColor + '22';
+  gb.style.color = gradeColor;
+  gb.style.border = `1px solid ${gradeColor}55`;
+
+  // ── INDICATOR CARDS ──
+
+  // VWAP
+  const vwapPct = s.vwapAbove ? 75 : 25;
+  document.getElementById('val-vwap').textContent  = `$${s.vwapVal}`;
+  document.getElementById('val-vwap').style.color  = s.vwapAbove ? 'var(--green)' : 'var(--red)';
+  document.getElementById('bar-vwap').style.width  = vwapPct + '%';
+  document.getElementById('bar-vwap').style.background = s.vwapAbove ? 'var(--green)' : 'var(--red)';
+  setStatus('vwap', s.vwapAbove ? 'bull' : 'bear', s.vwapAbove ? 'ABOVE ↑' : 'BELOW ↓');
+  document.getElementById('mean-vwap').textContent = s.vwapAbove
+    ? `✅ Price is ABOVE VWAP. Big players are bullish. Favor LONG trades only.`
+    : `⚠️ Price is BELOW VWAP. Big players are bearish. Favor SHORT trades only.`;
+  setCardClass('card-vwap', s.vwapAbove ? 'bullish' : 'bearish');
+
+  // ADX
+  const adxPct = Math.min(100, (s.adx / 50) * 100);
+  document.getElementById('val-adx').textContent = s.adx;
+  document.getElementById('val-adx').style.color = s.adx >= 30 ? 'var(--green)' : s.adx >= 20 ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('bar-adx').style.width = adxPct + '%';
+  setStatus('adx', s.adx >= 20 ? (s.adx >= 30 ? 'bull' : 'wait') : 'bear', s.adx >= 30 ? 'STRONG ✓' : s.adx >= 20 ? 'TRENDING' : '⛔ CHOPPY');
+  document.getElementById('mean-adx').textContent = s.adx >= 30
+    ? `✅ ADX ${s.adx} = STRONG trend. Breakouts are reliable. Full size OK.`
+    : s.adx >= 20
+    ? `⚠️ ADX ${s.adx} = Developing trend. Trade with caution, reduce size.`
+    : `❌ ADX ${s.adx} = CHOPPY MARKET. Skip ALL breakout trades right now!`;
+  setCardClass('card-adx', s.adx >= 20 ? (s.adx >= 30 ? 'bullish' : '') : 'bearish');
+
+  // RSI
+  document.getElementById('val-rsi').textContent = s.rsi;
+  const rsiOk = (s.mode === 'long' && s.rsi > 50 && s.rsi < 70) || (s.mode === 'short' && s.rsi < 50 && s.rsi > 30);
+  document.getElementById('val-rsi').style.color = s.rsi > 70 ? 'var(--red)' : s.rsi < 30 ? 'var(--blue)' : s.rsi > 50 ? 'var(--green)' : 'var(--orange)';
+  document.getElementById('bar-rsi').style.width = s.rsi + '%';
+  document.getElementById('bar-rsi').style.background = s.rsi > 70 ? 'var(--red)' : s.rsi > 50 ? 'var(--green)' : s.rsi < 30 ? 'var(--blue)' : 'var(--orange)';
+  setStatus('rsi', s.rsi > 70 || s.rsi < 30 ? 'bear' : rsiOk ? 'bull' : 'wait', s.rsi > 70 ? 'OVERBOUGHT ⚠' : s.rsi < 30 ? 'OVERSOLD ⚠' : `${s.rsi} — OK`);
+  document.getElementById('mean-rsi').textContent = s.rsi > 70
+    ? `⚠️ RSI ${s.rsi} = OVERBOUGHT. The move may be exhausted. Don't chase longs!`
+    : s.rsi < 30
+    ? `⚠️ RSI ${s.rsi} = OVERSOLD. Don't chase shorts — snap-back risk is high.`
+    : s.divergence
+    ? `⚠️ RSI DIVERGENCE DETECTED! Price and RSI are moving opposite. High false signal risk — skip this trade.`
+    : `✅ RSI ${s.rsi} — Healthy momentum. No divergence. Good zone to trade.`;
+  setCardClass('card-rsi', s.rsi > 70 || s.rsi < 30 ? 'warning' : rsiOk ? 'bullish' : '');
+
+  // MACD
+  document.getElementById('val-macd').textContent = (s.macdHist > 0 ? '+' : '') + s.macdHist.toFixed(3);
+  document.getElementById('val-macd').style.color = s.macdBull ? 'var(--green)' : 'var(--red)';
+  setStatus('macd', s.macdBull ? 'bull' : 'bear', s.macdBull ? 'BULLISH ▲' : 'BEARISH ▼');
+  setChecks('checks-macd', [
+    { text: 'MACD above Signal Line', pass: s.macdBull },
+    { text: 'Histogram positive & rising', pass: s.macdHist > 0 },
+    { text: 'MACD above zero line', pass: s.macdBull && s.macdHist > 0.05 },
+  ]);
+  document.getElementById('mean-macd').textContent = s.macdBull
+    ? `✅ Engine is REVVING UP. Buying momentum building. Confirms the LONG.`
+    : `⚠️ Engine is slowing. Selling pressure increasing. Confirms the SHORT.`;
+  setCardClass('card-macd', s.macdBull ? 'bullish' : 'bearish');
+
+  // Stochastic
+  document.getElementById('val-stoch').textContent = `K:${s.stochK} D:${s.stochD}`;
+  const stochBull = s.stochK > s.stochD && s.stochK < 80;
+  const stochBear = s.stochK < s.stochD && s.stochK > 20;
+  document.getElementById('val-stoch').style.color = stochBull ? 'var(--green)' : stochBear ? 'var(--red)' : 'var(--gray)';
+  document.getElementById('bar-stoch').style.width = s.stochK + '%';
+  document.getElementById('bar-stoch').style.background = s.stochK > 80 ? 'var(--red)' : s.stochK > 50 ? 'var(--green)' : s.stochK < 20 ? 'var(--blue)' : 'var(--orange)';
+  setStatus('stoch', stochBull ? 'bull' : stochBear ? 'bear' : 'wait', stochBull ? 'BULL CROSS ↑' : stochBear ? 'BEAR CROSS ↓' : 'NEUTRAL');
+  document.getElementById('mean-stoch').textContent = stochBull
+    ? `✅ %K crossed above %D in healthy zone. Buyers are waking up EARLY.`
+    : stochBear
+    ? `✅ %K crossed below %D. Sellers taking control early. SHORT momentum.`
+    : `⏳ No clean cross yet. Wait for stochastic to cross and confirm direction.`;
+  setCardClass('card-stoch', stochBull ? 'bullish' : stochBear ? 'bearish' : '');
+
+  // Volume
+  const volPct = Math.min(100, (s.volume / 2.5) * 100);
+  document.getElementById('val-vol').textContent = `${(s.volume * 100).toFixed(0)}% avg`;
+  document.getElementById('val-vol').style.color = s.volume >= 2 ? 'var(--green)' : s.volume >= 1.5 ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('bar-vol').style.width = volPct + '%';
+  document.getElementById('bar-vol').style.background = s.volume >= 1.5 ? 'var(--green)' : 'var(--red)';
+  setStatus('vol', s.volume >= 1.5 ? 'bull' : 'bear', s.volume >= 2 ? 'VERY HIGH ✓' : s.volume >= 1.5 ? 'HIGH ✓' : 'LOW ✗');
+  document.getElementById('mean-vol').textContent = s.volume >= 2
+    ? `✅ Exceptional volume — ${(s.volume*100).toFixed(0)}% of average. Big players are IN. Strong signal.`
+    : s.volume >= 1.5
+    ? `✅ Volume confirmed at ${(s.volume*100).toFixed(0)}%. Good conviction. Signal is valid.`
+    : `❌ Volume only ${(s.volume*100).toFixed(0)}% of average. WEAK MOVE. This breakout is likely FAKE. Skip.`;
+  setCardClass('card-vol', s.volume >= 1.5 ? 'bullish' : 'bearish');
+
+  // ── FULL CHECKLIST ──
+  const cl = document.getElementById('full-checklist');
+  cl.innerHTML = '';
+  checks.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'check-item';
+    el.innerHTML = `<div class="check-dot ${c.pass ? 'pass' : 'fail'}"></div><div class="check-text" style="font-size:11px">${c.label}<br><span style="color:var(--text-dim);font-size:10px">${c.val}</span></div>`;
+    cl.appendChild(el);
+  });
+
+  const ost = document.getElementById('st-overall');
+  ost.textContent = `${score}/9 — ${grade}`;
+  ost.className = `ind-status ${score >= 6 ? 'status-bull' : score >= 4 ? 'status-wait' : 'status-bear'}`;
+
+  recalcTrade();
+}
+
+// ── HELPERS ──
+function setStatus(id, type, txt) {
+  const el = document.getElementById('st-' + id);
+  el.textContent = txt;
+  el.className = 'ind-status ' + ({bull:'status-bull',bear:'status-bear',wait:'status-wait',off:'status-off'}[type] || 'status-off');
+}
+function setCardClass(id, cls) {
+  const el = document.getElementById(id);
+  el.className = 'ind-card ' + cls;
+}
+function setChecks(id, arr) {
+  const el = document.getElementById(id);
+  el.innerHTML = arr.map(c => `<div class="check-item"><div class="check-dot ${c.pass ? 'pass' : 'fail'}"></div><div class="check-text">${c.text}</div></div>`).join('');
+}
+
+// ── PNL ──
+let dailyPnl = 0;
+function addPnl(amt) {
+  dailyPnl += amt;
+  state.trades++;
+  document.getElementById('trade-count').textContent = state.trades;
+  updatePnl();
+}
+function resetPnl() {
+  dailyPnl = 0; state.trades = 0;
+  document.getElementById('trade-count').textContent = 0;
+  updatePnl();
+}
+function updatePnl() {
+  const el = document.getElementById('pnl-today');
+  el.textContent = (dailyPnl >= 0 ? '+' : '') + '$' + dailyPnl.toLocaleString();
+  el.style.color = dailyPnl >= 1000 ? 'var(--green)' : dailyPnl >= 0 ? 'var(--yellow)' : 'var(--red)';
+  const pct = Math.max(0, Math.min(100, (dailyPnl / 1000) * 100));
+  document.getElementById('target-bar').style.width = pct + '%';
+  document.getElementById('target-pct').textContent = pct.toFixed(0) + '% of $1,000 goal';
+  const ds = document.getElementById('daily-status');
+  if (dailyPnl >= 1000) { ds.innerHTML = '🎉 TARGET HIT! STOP TRADING!'; ds.style.color = 'var(--green)'; }
+  else if (dailyPnl <= -2000) { ds.innerHTML = '🛑 DAILY STOP HIT! LOG OFF!'; ds.style.color = 'var(--red)'; }
+  else { ds.innerHTML = '✅ Still Trading'; ds.style.color = 'var(--text-dim)'; }
+}
+
+// ── TICKER ──
+function updateTicker() {
+  var prices = {SPY:551, QQQ:480, NVDA:142, AAPL:228, TSLA:345, MSFT:415};
+  var t = document.getElementById('tickerSel').value;
+  var p = prices[t] || 551;
+  document.getElementById('entryPrice').value = p.toFixed(2);
+  document.getElementById('stopPrice').value  = (p - 1.5).toFixed(2);
+  state.vwapVal = +(p - 0.5).toFixed(2);
+  state.orHigh  = +(p + 1.2).toFixed(2);
+  state.orLow   = +(p - 1.1).toFixed(2);
+  recalcAll();
+  // Sync TV widgets and tab highlights
+  if (t !== tvTicker) {
+    tvTicker = t;
+    document.querySelectorAll('.tv-tab').forEach(function(b){
+      b.classList.toggle('active', b.textContent.trim() === t);
+    });
+    renderTape();
+    renderMainChart();
+    renderMiniCharts();
+  }
+}
+
+
+// ── LIVE DRIFT SIMULATION ──
+let driftInterval;
+function startDrift() {
+  clearInterval(driftInterval);
+  driftInterval = setInterval(() => {
+    if (state.mode === 'wait') {
+      state.adx   = Math.max(10, Math.min(45, state.adx   + (Math.random()-0.5)*1.5));
+      state.rsi   = Math.max(25, Math.min(75, state.rsi   + (Math.random()-0.5)*2));
+      state.volume= Math.max(0.5,Math.min(3,  state.volume+ (Math.random()-0.5)*0.1));
+      state.macdHist = Math.max(-0.3, Math.min(0.3, state.macdHist + (Math.random()-0.5)*0.03));
+      state.macdBull = state.macdHist > 0;
+      recalcAll();
+    }
+  }, 2000);
+}
+
+// ══════════════════════════════════════════════════════
+// MULTI TIMEFRAME ENGINE
+// ══════════════════════════════════════════════════════
+
+// Each TF: { trend:'bull'|'bear'|'neut', ema:'stack'|'partial'|'flat', rsi, macdBull, price_vs_ema:'above'|'below'|'at' }
+let mtfState = {
+  '1m':  { trend:'bull', ema:'partial', rsi:58, macdBull:true,  priceAbove:true  },
+  '5m':  { trend:'bull', ema:'stack',   rsi:61, macdBull:true,  priceAbove:true  },
+  '15m': { trend:'bull', ema:'stack',   rsi:57, macdBull:true,  priceAbove:true  },
+  '30m': { trend:'bull', ema:'partial', rsi:55, macdBull:true,  priceAbove:true  },
+  '1h':  { trend:'bull', ema:'stack',   rsi:53, macdBull:true,  priceAbove:true  },
+  '4h':  { trend:'bull', ema:'stack',   rsi:62, macdBull:true,  priceAbove:true  },
+};
+
+const TF_META = [
+  { key:'1m',  label:'1 MIN',  badgeClass:'tf-badge-1m',  role:'Scalp entry timing',    weight:1 },
+  { key:'5m',  label:'5 MIN',  badgeClass:'tf-badge-5m',  role:'Primary trade chart',   weight:2 },
+  { key:'15m', label:'15 MIN', badgeClass:'tf-badge-15m', role:'Short-term trend',      weight:3 },
+  { key:'30m', label:'30 MIN', badgeClass:'tf-badge-30m', role:'Intraday direction',    weight:4 },
+  { key:'1h',  label:'1 HR',   badgeClass:'tf-badge-1h',  role:'Dominant daily bias',   weight:5 },
+  { key:'4h',  label:'4 HR',   badgeClass:'tf-badge-4h',  role:'Swing / HTF structure', weight:6 },
+];
+
+function simulateMTF(scenario) {
+  const scenarios = {
+    'all-bull': {
+      '1m':  { trend:'bull', ema:'partial', rsi:59, macdBull:true,  priceAbove:true  },
+      '5m':  { trend:'bull', ema:'stack',   rsi:63, macdBull:true,  priceAbove:true  },
+      '15m': { trend:'bull', ema:'stack',   rsi:61, macdBull:true,  priceAbove:true  },
+      '30m': { trend:'bull', ema:'stack',   rsi:58, macdBull:true,  priceAbove:true  },
+      '1h':  { trend:'bull', ema:'stack',   rsi:55, macdBull:true,  priceAbove:true  },
+      '4h':  { trend:'bull', ema:'stack',   rsi:67, macdBull:true,  priceAbove:true  },
+    },
+    'all-bear': {
+      '1m':  { trend:'bear', ema:'partial', rsi:41, macdBull:false, priceAbove:false },
+      '5m':  { trend:'bear', ema:'stack',   rsi:38, macdBull:false, priceAbove:false },
+      '15m': { trend:'bear', ema:'stack',   rsi:42, macdBull:false, priceAbove:false },
+      '30m': { trend:'bear', ema:'stack',   rsi:44, macdBull:false, priceAbove:false },
+      '1h':  { trend:'bear', ema:'stack',   rsi:46, macdBull:false, priceAbove:false },
+      '4h':  { trend:'bear', ema:'stack',   rsi:35, macdBull:false, priceAbove:false },
+    },
+    'conflict-bu': {
+      '1m':  { trend:'bull', ema:'partial', rsi:58, macdBull:true,  priceAbove:true  },
+      '5m':  { trend:'bull', ema:'partial', rsi:55, macdBull:true,  priceAbove:true  },
+      '15m': { trend:'neut', ema:'flat',    rsi:50, macdBull:false, priceAbove:false },
+      '30m': { trend:'bear', ema:'stack',   rsi:44, macdBull:false, priceAbove:false },
+      '1h':  { trend:'bear', ema:'stack',   rsi:40, macdBull:false, priceAbove:false },
+      '4h':  { trend:'bear', ema:'stack',   rsi:37, macdBull:false, priceAbove:false },
+    },
+    'conflict-ub': {
+      '1m':  { trend:'bear', ema:'partial', rsi:44, macdBull:false, priceAbove:false },
+      '5m':  { trend:'bear', ema:'partial', rsi:42, macdBull:false, priceAbove:false },
+      '15m': { trend:'neut', ema:'flat',    rsi:50, macdBull:true,  priceAbove:true  },
+      '30m': { trend:'bull', ema:'stack',   rsi:56, macdBull:true,  priceAbove:true  },
+      '1h':  { trend:'bull', ema:'stack',   rsi:59, macdBull:true,  priceAbove:true  },
+      '4h':  { trend:'bull', ema:'stack',   rsi:64, macdBull:true,  priceAbove:true  },
+    },
+    'mixed': {
+      '1m':  { trend:'bull', ema:'partial', rsi:54, macdBull:true,  priceAbove:true  },
+      '5m':  { trend:'bear', ema:'flat',    rsi:47, macdBull:false, priceAbove:false },
+      '15m': { trend:'bull', ema:'partial', rsi:52, macdBull:true,  priceAbove:true  },
+      '30m': { trend:'neut', ema:'flat',    rsi:50, macdBull:false, priceAbove:false },
+      '1h':  { trend:'bear', ema:'partial', rsi:46, macdBull:false, priceAbove:false },
+      '4h':  { trend:'neut', ema:'flat',    rsi:51, macdBull:true,  priceAbove:false },
+    },
+  };
+  mtfState = JSON.parse(JSON.stringify(scenarios[scenario]));
+  renderMTF();
+}
+
+function renderMTF() {
+  const rowsEl = document.getElementById('mtf-rows');
+  rowsEl.innerHTML = '';
+
+  let bullCount = 0, bearCount = 0, neutCount = 0;
+  let weightedBull = 0, weightedTotal = 0;
+
+  TF_META.forEach(tf => {
+    const d = mtfState[tf.key];
+    const isBull = d.trend === 'bull';
+    const isBear = d.trend === 'bear';
+    if (isBull) { bullCount++; weightedBull += tf.weight; }
+    else if (isBear) bearCount++;
+    else neutCount++;
+    weightedTotal += tf.weight;
+
+    // Trend color
+    const trendColor = isBull ? 'var(--green)' : isBear ? 'var(--red)' : 'var(--gray)';
+    const trendTxt   = isBull ? '▲ UPTREND' : isBear ? '▼ DOWNTREND' : '→ SIDEWAYS';
+
+    // EMA stack description
+    const emaTxt  = d.ema === 'stack'   ? '9>21>50 ✓' : d.ema === 'partial' ? '9>21 ~' : '9≈21≈50';
+    const emaColor = d.ema === 'stack'  ? (isBull?'var(--green)':'var(--red)') : d.ema === 'partial' ? 'var(--yellow)' : 'var(--gray)';
+
+    // RSI
+    const rsiColor = d.rsi > 70 ? 'var(--red)' : d.rsi < 30 ? 'var(--blue)' : d.rsi > 50 ? 'var(--green)' : 'var(--orange)';
+
+    // MACD
+    const macdTxt   = d.macdBull ? '▲ BULL' : '▼ BEAR';
+    const macdColor = d.macdBull ? 'var(--green)' : 'var(--red)';
+
+    // Signal strength for this TF
+    let tfScore = 0;
+    if (isBull || isBear) tfScore++;
+    if (d.ema === 'stack') tfScore++;
+    if ((isBull && d.rsi > 50 && d.rsi < 70) || (isBear && d.rsi < 50 && d.rsi > 30)) tfScore++;
+    if ((isBull && d.macdBull) || (isBear && !d.macdBull)) tfScore++;
+    if ((isBull && d.priceAbove) || (isBear && !d.priceAbove)) tfScore++;
+    const sigTxt   = tfScore >= 4 ? 'STRONG' : tfScore >= 3 ? 'OK' : tfScore >= 2 ? 'WEAK' : 'FLAT';
+    const sigColor = tfScore >= 4 ? 'var(--green)' : tfScore >= 3 ? 'var(--yellow)' : 'var(--red)';
+    const sigBg    = tfScore >= 4 ? 'rgba(0,255,136,0.12)' : tfScore >= 3 ? 'rgba(255,209,0,0.12)' : 'rgba(255,51,85,0.12)';
+    const sigBorder= tfScore >= 4 ? 'rgba(0,255,136,0.3)' : tfScore >= 3 ? 'rgba(255,209,0,0.3)' : 'rgba(255,51,85,0.3)';
+
+    // Sparkline - EMA positions as % across a 100px track
+    // Price position based on priceAbove; EMA9 always slightly left of price for bull
+    const pricePos  = d.priceAbove ? 72 : 30;
+    const ema9Pos   = isBull ? pricePos - 10 : pricePos + 10;
+    const ema21Pos  = isBull ? ema9Pos  - 12 : ema9Pos  + 12;
+    const ema50Pos  = isBull ? ema21Pos - 14 : ema21Pos + 14;
+    const priceBg   = isBull ? 'var(--green)' : isBear ? 'var(--red)' : 'var(--gray)';
+    const fillColor = isBull ? 'var(--green)' : 'var(--red)';
+    const fillLeft  = isBull ? Math.max(0,ema9Pos) : pricePos;
+    const fillWidth = isBull ? pricePos - Math.max(0,ema9Pos) : Math.max(0,ema9Pos) - pricePos;
+
+    const row = document.createElement('div');
+    row.className = 'mtf-row';
+    row.innerHTML = `
+      <div class="mtf-tf">
+        <div class="mtf-tf-badge ${tf.badgeClass}">${tf.label}</div>
+        <div class="mtf-tf-role">${tf.role}</div>
+      </div>
+
+      <div class="mtf-sparkline">
+        <div class="spark-track">
+          <div class="spark-fill" style="left:${Math.min(fillLeft,fillLeft+fillWidth)}%;width:${Math.abs(fillWidth)}%;background:${fillColor}"></div>
+          <div class="spark-ema50" style="left:${Math.max(5,Math.min(90,ema50Pos))}%"></div>
+          <div class="spark-ema21" style="left:${Math.max(5,Math.min(90,ema21Pos))}%"></div>
+          <div class="spark-ema9"  style="left:${Math.max(5,Math.min(90,ema9Pos))}%"></div>
+          <div class="spark-price" style="left:${Math.max(5,Math.min(92,pricePos))}%;background:${priceBg};box-shadow:0 0 6px ${priceBg}"></div>
+          <div class="spark-label">P·9·21·50</div>
+        </div>
+      </div>
+
+      <div class="mtf-trend" style="color:${trendColor}">${trendTxt}</div>
+      <div class="mtf-ema"   style="color:${emaColor};font-size:10px">${emaTxt}</div>
+      <div class="mtf-rsi"   style="color:${rsiColor}">${d.rsi}</div>
+      <div class="mtf-macd"  style="color:${macdColor};font-size:10px">${macdTxt}</div>
+      <div class="mtf-signal">
+        <div class="mtf-signal-dot" style="color:${sigColor};background:${sigBg};border-color:${sigBorder}">${sigTxt} ${tfScore}/5</div>
+      </div>
+    `;
+    rowsEl.appendChild(row);
+  });
+
+  // ── ALIGNMENT DOTS ──
+  const dotsEl = document.getElementById('mtf-align-dots');
+  dotsEl.innerHTML = '';
+  TF_META.forEach(tf => {
+    const d = mtfState[tf.key];
+    const cls = d.trend === 'bull' ? 'bull' : d.trend === 'bear' ? 'bear' : 'neut';
+    const dot = document.createElement('div');
+    dot.className = `align-dot ${cls}`;
+    dot.title = tf.label;
+    dot.textContent = tf.label.split(' ')[0];
+    dotsEl.appendChild(dot);
+  });
+
+  // ── VERDICT & ADVICE ──
+  const pctBull = weightedBull / weightedTotal;
+  const pctBear = (weightedTotal - weightedBull) / weightedTotal;
+  const verdict = document.getElementById('mtf-verdict');
+  const advice  = document.getElementById('mtf-advice');
+  const conflict = document.getElementById('mtf-conflict');
+
+  // HTF = 1h + 4h (last 2), LTF = 1m + 5m (first 2), MTF = 15m + 30m (middle 2)
+  const htfBull = (mtfState['1h'].trend==='bull') && (mtfState['4h'].trend==='bull');
+  const htfBear = (mtfState['1h'].trend==='bear') && (mtfState['4h'].trend==='bear');
+  const ltfBull = (mtfState['5m'].trend==='bull');
+  const ltfBear = (mtfState['5m'].trend==='bear');
+  const mtfBull = (mtfState['15m'].trend==='bull') && (mtfState['30m'].trend==='bull');
+  const mtfBear = (mtfState['15m'].trend==='bear') && (mtfState['30m'].trend==='bear');
+
+  const allAligned = bullCount >= 5 || bearCount >= 5;
+  const strongBull = htfBull && mtfBull && ltfBull;
+  const strongBear = htfBear && mtfBear && ltfBear;
+
+  // Conflict scenarios
+  const conflictHTFvsLTF = (htfBull && ltfBear) || (htfBear && ltfBull);
+  const conflictMTFvsHTF = (htfBull && mtfBear) || (htfBear && mtfBull);
+
+  if (strongBull) {
+    verdict.textContent = '✅ ALL BULLISH — LONG TRADES ONLY';
+    verdict.style.color = 'var(--green)'; verdict.style.borderColor = 'rgba(0,255,136,0.4)'; verdict.style.background = 'rgba(0,255,136,0.1)';
+    advice.innerHTML = `<strong style="color:var(--green)">🟢 PERFECT LONG SETUP.</strong> All 6 timeframes point UP. This is the highest confidence you can have.<br>✅ Only take LONG trades. ✅ On 5-min pullbacks to EMA, buy the dip. ✅ Hold winners longer — the trend is your friend today.`;
+    conflict.className = 'mtf-conflict good show';
+    conflict.innerHTML = `✅ No conflict. All timeframes aligned. This is the BEST trading condition. When HTF (4H, 1H) agree with LTF (5M) = you are swimming WITH the current. Much easier to make money.`;
+  } else if (strongBear) {
+    verdict.textContent = '✅ ALL BEARISH — SHORT TRADES ONLY';
+    verdict.style.color = 'var(--red)'; verdict.style.borderColor = 'rgba(255,51,85,0.4)'; verdict.style.background = 'rgba(255,51,85,0.1)';
+    advice.innerHTML = `<strong style="color:var(--red)">🔴 PERFECT SHORT SETUP.</strong> All 6 timeframes point DOWN. High confidence short environment.<br>✅ Only take SHORT trades. ✅ On 5-min pops to EMA, sell the rip. ✅ Hold shorts with confidence — structure is fully bearish.`;
+    conflict.className = 'mtf-conflict good show';
+    conflict.innerHTML = `✅ No conflict. All timeframes aligned downward. Short sellers are in full control across every chart. Follow the dominant flow.`;
+  } else if (htfBull && !ltfBull) {
+    verdict.textContent = '⚠️ HTF BULL — LTF PULLING BACK';
+    verdict.style.color = 'var(--yellow)'; verdict.style.borderColor = 'rgba(255,209,0,0.4)'; verdict.style.background = 'rgba(255,209,0,0.08)';
+    advice.innerHTML = `<strong style="color:var(--yellow)">⏳ BIG PICTURE = BULLISH. But the 5-min is weak right now.</strong><br>This is a PULLBACK in an uptrend — not a reversal.<br>✅ DO NOT short. ✅ Wait for 5-min to turn bullish again then buy. ✅ This is the best long entry setup — buy the dip!`;
+    conflict.className = 'mtf-conflict warn show';
+    conflict.innerHTML = `⚠️ CONFLICT: 4H/1H say UP but 5M is pulling back. Think of it like a river flowing north — but right now there's a small eddy going south. The river will win. Wait for the 5M to re-align then long.`;
+  } else if (htfBear && !ltfBear) {
+    verdict.textContent = '⚠️ HTF BEAR — LTF BOUNCING';
+    verdict.style.color = 'var(--yellow)'; verdict.style.borderColor = 'rgba(255,209,0,0.4)'; verdict.style.background = 'rgba(255,209,0,0.08)';
+    advice.innerHTML = `<strong style="color:var(--yellow)">⏳ BIG PICTURE = BEARISH. But 5-min is bouncing upward.</strong><br>This is a DEAD CAT BOUNCE inside a downtrend.<br>✅ DO NOT buy the bounce. ✅ Wait for 5-min to roll over and short. ✅ The HTF is the boss — it will win.`;
+    conflict.className = 'mtf-conflict warn show';
+    conflict.innerHTML = `⚠️ CONFLICT: 4H/1H say DOWN but 5M is trying to bounce. Bounces in downtrends are selling opportunities, not buying ones. Wait for the bounce to fade and the 5M to turn red again.`;
+  } else if (bullCount === bearCount || (neutCount >= 3)) {
+    verdict.textContent = '🌀 MIXED — NO CLEAR DIRECTION';
+    verdict.style.color = 'var(--gray)'; verdict.style.borderColor = '#333'; verdict.style.background = 'rgba(100,100,100,0.08)';
+    advice.innerHTML = `<strong style="color:var(--gray)">🌀 TIMEFRAMES ARE FIGHTING EACH OTHER.</strong> This is the most dangerous condition.<br>❌ DO NOT trade. ❌ If you do, use half size only. ❌ Wait for at least 4 of 6 timeframes to agree before entering. The market has no clear boss right now.`;
+    conflict.className = 'mtf-conflict warn show';
+    conflict.innerHTML = `⚠️ MAX CONFLICT: Timeframes are split. This usually happens around major news events or lunch time. The breakout will be a FAKE in these conditions. Best action = sit on your hands. Your $2M account will thank you.`;
+  } else {
+    verdict.textContent = `📊 ${bullCount > bearCount ? 'MOSTLY BULL' : 'MOSTLY BEAR'} — ${Math.max(bullCount,bearCount)}/6`;
+    const mc = bullCount > bearCount ? 'var(--green)' : 'var(--red)';
+    verdict.style.color = mc; verdict.style.borderColor = mc+'44'; verdict.style.background = mc+'11';
+    advice.innerHTML = `<strong>${bullCount > bearCount ? '🟢 Leaning BULLISH' : '🔴 Leaning BEARISH'}</strong> — ${Math.max(bullCount,bearCount)} of 6 timeframes aligned.<br>${bullCount > bearCount ? '✅ Favor LONG trades but use reduced size until more TFs align.' : '✅ Favor SHORT trades but use reduced size until more TFs align.'}<br>Wait for that ${6 - Math.max(bullCount,bearCount)} remaining timeframe to confirm before going full size.`;
+    conflict.className = 'mtf-conflict show ' + (Math.max(bullCount,bearCount) >= 4 ? 'good' : 'warn');
+    conflict.innerHTML = Math.max(bullCount,bearCount) >= 4
+      ? `✅ Decent alignment. ${Math.max(bullCount,bearCount)}/6 pointing ${bullCount>bearCount?'UP':'DOWN'}. Acceptable to trade at 75% size. Keep stops tight.`
+      : `⚠️ Only ${Math.max(bullCount,bearCount)}/6 aligned. Risky conditions. Half size max. One more TF needs to flip before full confidence.`;
+  }
+}
+
+// MTF sync is now handled inside simulate() directly
+
+
+// ══════════════════════════════════════════════════════
+// TRADINGVIEW OFFICIAL WIDGET ENGINE
+// Uses TradingView's script-injection method — works on
+// file://, localhost, and any web host. No iframe blocking.
+// ══════════════════════════════════════════════════════
+let tvTicker   = 'SPY';
+let tvInterval = '5';
+
+const TV_EXCHANGE = {
+  SPY:'AMEX', QQQ:'NASDAQ', NVDA:'NASDAQ',
+  AAPL:'NASDAQ', TSLA:'NASDAQ', MSFT:'NASDAQ'
+};
+
+const MINI_TFS = [
+  // 6 timeframes — color used for badge text + top border line only
+  { interval:'1',   label:'1 MIN',   color:'#aaaaaa' },
+  { interval:'5',   label:'5 MIN',   color:'#00aaff' },
+  { interval:'15',  label:'15 MIN',  color:'#00ff88' },
+  { interval:'30',  label:'30 MIN',  color:'#ffd100' },
+  { interval:'60',  label:'1 HR',    color:'#ff8800' },
+  { interval:'240', label:'4 HR 👑', color:'#ff4466' },
+];
+
+// ── Load a script tag once by ID, re-run if already loaded ──
+function loadTVScript(src, id, onload) {
+  var existing = document.getElementById(id);
+  if (existing) existing.remove();
+  var s = document.createElement('script');
+  s.id  = id;
+  s.src = src;
+  s.async = true;
+  if (onload) s.onload = onload;
+  document.head.appendChild(s);
+}
+
+// ── TICKER TAPE — scrolling price bar ──
+function renderTape() {
+  var el = document.getElementById('tv-tape-widget');
+  if (!el) return;
+  el.innerHTML = '';
+  var cfg = {
+    symbols: [
+      {proName: TV_EXCHANGE[tvTicker]+':'+tvTicker, title: tvTicker},
+      {proName:'AMEX:SPY',     title:'SPY'},
+      {proName:'NASDAQ:QQQ',   title:'QQQ'},
+      {proName:'NASDAQ:NVDA',  title:'NVDA'},
+      {proName:'NASDAQ:AAPL',  title:'AAPL'},
+      {proName:'NASDAQ:TSLA',  title:'TSLA'},
+      {proName:'NASDAQ:MSFT',  title:'MSFT'},
+      {proName:'CBOE:VIX',     title:'VIX'},
+      {proName:'TVC:GOLD',     title:'GOLD'},
+      {proName:'BITSTAMP:BTCUSD', title:'BTC'}
+    ],
+    showSymbolLogo: true,
+    isTransparent: true,
+    displayMode: 'adaptive',
+    colorTheme: 'dark',
+    locale: 'en'
+  };
+  var s = document.createElement('script');
+  s.type = 'text/javascript';
+  s.src  = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+  s.async = true;
+  s.innerHTML = JSON.stringify(cfg);
+  el.appendChild(s);
+}
+
+// ── MAIN ADVANCED CHART ──
+function renderMainChart() {
+  var el = document.getElementById('tv-main-widget');
+  if (!el) return;
+  el.innerHTML = '';
+  var cfg = {
+    autosize: true,
+    symbol: TV_EXCHANGE[tvTicker] + ':' + tvTicker,
+    interval: tvInterval,
+    timezone: 'America/New_York',
+    theme: 'dark',
+    style: '1',
+    locale: 'en',
+    toolbar_bg: '#131722',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    studies: [
+      'RSI@tv-basicstudies',
+      'MACD@tv-basicstudies',
+      'Volume@tv-basicstudies',
+      'VWAP@tv-basicstudies'
+    ],
+    show_popup_button: false,
+    popup_width: '1000',
+    popup_height: '650',
+    container_id: 'tv-main-widget'
+  };
+  var s = document.createElement('script');
+  s.type  = 'text/javascript';
+  s.src   = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.async = true;
+  s.innerHTML = JSON.stringify(cfg);
+  el.appendChild(s);
+}
+
+// ── MINI CHARTS (MTF row) — 6 equal columns ──
+function renderMiniCharts() {
+  var grid = document.getElementById('tvMiniGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  MINI_TFS.forEach(function(tf) {
+    // ── Cell wrapper ──
+    var cell = document.createElement('div');
+    cell.className = 'tv-mini-cell';
+
+    // ── TF label badge — sits above chart ──
+    var badge = document.createElement('div');
+    badge.className = 'tv-mini-label';
+    badge.textContent = tf.label;
+    // Badge = tiny floating pill label — semi-transparent, does NOT cover the chart
+    badge.style.cssText = 'position:absolute;top:6px;left:8px;z-index:20;font-size:9px;font-weight:800;letter-spacing:1.5px;padding:2px 8px;border-radius:4px;pointer-events:none;background:rgba(13,17,28,0.75);color:' + tf.color + ';border:1px solid ' + tf.color + '88;';
+
+    // ── Widget host — TradingView fills this div with an iframe ──
+    var widgetId = 'tv-mini-widget-' + tf.interval;
+    var host = document.createElement('div');
+    host.id = widgetId;
+    // Must set explicit height — TradingView reads this to size the iframe
+    host.style.cssText = 'width:100%;height:240px;';
+
+    // ── TradingView Advanced Chart config ──
+    var cfg = {
+      autosize:           false,
+      width:              '100%',
+      height:             240,           // Taller = more room for RSI pane below candles
+      symbol:             TV_EXCHANGE[tvTicker] + ':' + tvTicker,
+      interval:           tf.interval,
+      timezone:           'America/New_York',
+      theme:              'dark',
+      style:              '1',           // Candlestick
+      locale:             'en',
+      toolbar_bg:         '#131722',
+      enable_publishing:  false,
+      hide_top_toolbar:   true,          // No toolbar — clean
+      hide_legend:        true,          // No OHLC text — too cluttered on small chart
+      hide_side_toolbar:  true,          // No drawing tools
+      allow_symbol_change: false,
+      save_image:         false,
+      withdateranges:     false,
+      studies:            ['RSI@tv-basicstudies'],   // RSI only — matches top chart style
+      studies_overrides:  {
+        'RSI.RSI.color':        '#c040ff',   // Purple RSI line — same as main chart
+        'RSI.RSI.linewidth':    1.5,
+        'RSI.UpperLimit':       70,
+        'RSI.LowerLimit':       30,
+      },
+      container_id:       widgetId
+    };
+
+    var s = document.createElement('script');
+    s.type  = 'text/javascript';
+    s.src   = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    s.async = true;
+    s.innerHTML = JSON.stringify(cfg);
+
+    // Thin colored top border only — identifies the TF without covering chart
+    cell.style.borderTopColor = tf.color + 'bb';
+    // Badge goes last so it renders on top of the chart iframe
+    cell.appendChild(host);
+    cell.appendChild(s);
+    cell.appendChild(badge);
+    grid.appendChild(cell);
+  });
+}
+
+// ── SWITCH TICKER — called by ticker tab buttons ──
+function switchTVTicker(symbol, btn) {
+  tvTicker = symbol;
+  document.querySelectorAll('.tv-tab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  // Sync the main dropdown
+  var sel = document.getElementById('tickerSel');
+  if (sel && sel.value !== symbol) sel.value = symbol;
+  // Update state prices
+  var prices = {SPY:551,QQQ:480,NVDA:142,AAPL:228,TSLA:345,MSFT:415};
+  var p = prices[symbol] || 300;
+  document.getElementById('entryPrice').value = p.toFixed(2);
+  document.getElementById('stopPrice').value  = (p-1.5).toFixed(2);
+  state.vwapVal = +(p - 0.5).toFixed(2);
+  state.orHigh  = +(p + 1.2).toFixed(2);
+  state.orLow   = +(p - 1.1).toFixed(2);
+  recalcAll();
+  // Re-render all TV widgets with new symbol
+  renderTape();
+  renderMainChart();
+  renderMiniCharts();
+}
+
+// ── SWITCH INTERVAL — only rebuilds main chart ──
+function switchTVInterval(interval, btn) {
+  tvInterval = interval;
+  document.querySelectorAll('.tv-itab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  renderMainChart();
+}
+
+// ── LIVE PULSE every 5 seconds (visual only — TV widgets self-update) ──
+var tvRefreshCount = 0;
+function tvAutoRefresh() {
+  tvRefreshCount++;
+  var dot = document.querySelector('.tv-live-dot');
+  if (dot) {
+    dot.style.background = '#ffffff';
+    dot.style.boxShadow  = '0 0 8px #fff';
+    setTimeout(function(){
+      dot.style.background = 'var(--green)';
+      dot.style.boxShadow  = '0 0 8px var(--green)';
+    }, 400);
+  }
+}
+setInterval(tvAutoRefresh, 5000);
+
+
+// ── INIT ──
+updateClock();
+setInterval(updateClock, 1000);
+simulate('wait');
+startDrift();
+// Boot TradingView widgets with small delay so DOM is ready
+setTimeout(function(){
+  renderTape();
+  renderMainChart();
+  renderMiniCharts();
+}, 300);
+</script>
+</body>
+</html>
